@@ -11,6 +11,7 @@ Examples:
     init_skill.py custom-skill --path /custom/location
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -202,6 +203,14 @@ def init_skill(skill_name, path):
     Returns:
         Path to created skill directory, or None if error
     """
+    # Validate skill name format
+    if not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', skill_name) or '--' in skill_name:
+        print(f"Error: Invalid skill name '{skill_name}'. Must be kebab-case (lowercase letters, digits, hyphens, no leading/trailing hyphens).")
+        return None
+    if len(skill_name) > 64:
+        print(f"Error: Skill name too long ({len(skill_name)} chars, max 64).")
+        return None
+
     # Determine skill directory path
     skill_dir = Path(path).resolve() / skill_name
 

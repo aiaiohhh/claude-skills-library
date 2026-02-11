@@ -107,10 +107,12 @@ const server = http.createServer((req, res) => {
     }
     let body = "";
     let size = 0;
+    let responseSent = false;
     const MAX_BODY = 1024 * 1024; // 1MB
     req.on("data", (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY) {
+        responseSent = true;
         res.writeHead(413, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Request too large" }));
         req.destroy();
@@ -119,6 +121,7 @@ const server = http.createServer((req, res) => {
       body += chunk;
     });
     req.on("end", () => {
+      if (responseSent) return;
       try {
         const data = JSON.parse(body);
         fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
