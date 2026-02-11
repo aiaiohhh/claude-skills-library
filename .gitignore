@@ -4,3 +4,4 @@
 *~
 .env
 .flowi
+__pycache__/
