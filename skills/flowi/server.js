@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 // Flowy Dev Server - Serves interactive diagram viewer with live-reload
-// Usage: node ~/.claude/skills/flowy/server.js [port] [flowy-dir]
-// Defaults: port=3333, flowy-dir=./.flowy
+// Usage: node ~/.claude/skills/flowi/server.js [port] [flowi-dir]
+// Defaults: port=3333, flowi-dir=./.flowi
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
 const PORT = parseInt(process.argv[2]) || 3333;
-const FLOWY_DIR = path.resolve(process.argv[3] || "./.flowy");
+const FLOWY_DIR = path.resolve(process.argv[3] || "./.flowi");
 const VIEWER_HTML = path.join(__dirname, "index.html");
 
 // Track connected SSE clients for live-reload
@@ -21,7 +21,7 @@ function sendEvent(data) {
   }
 }
 
-// Watch .flowy directory for changes
+// Watch .flowi directory for changes
 function watchFlowyDir() {
   if (!fs.existsSync(FLOWY_DIR)) {
     fs.mkdirSync(FLOWY_DIR, { recursive: true });
@@ -33,7 +33,7 @@ function watchFlowyDir() {
     if (!filename || !filename.endsWith(".json")) return;
     clearTimeout(debounce);
     debounce = setTimeout(() => {
-      console.log(`[flowy] ${eventType}: ${filename}`);
+      console.log(`[flowi] ${eventType}: ${filename}`);
       sendEvent({ type: "reload", file: filename });
     }, 100);
   });
@@ -122,7 +122,7 @@ const server = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body);
         fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
-        console.log(`[flowy] Saved: ${filename}`);
+        console.log(`[flowi] Saved: ${filename}`);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) {

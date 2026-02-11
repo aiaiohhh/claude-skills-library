@@ -3,7 +3,7 @@ name: flowi
 author: tyr0nin - AiAiOHHH
 version: 1.0.0
 user_invocable: true
-description: Visual flowchart and diagram planning tool. Claude writes structured JSON to a .flowy/ directory, which renders as interactive, editable diagrams in the browser. Use for architecture planning, user flows, system design, state machines, and UI mockups.
+description: Visual flowchart and diagram planning tool. Claude writes structured JSON to a .flowi/ directory, which renders as interactive, editable diagrams in the browser. Use for architecture planning, user flows, system design, state machines, and UI mockups.
 ---
 
 # Flowi - Visual Planning & Diagramming
@@ -12,8 +12,8 @@ You are using Flowi, a visual feedback loop for planning. Instead of ASCII diagr
 
 ## Workflow
 
-1. **Create** `.flowy/` directory in the project root if it doesn't exist
-2. **Write** JSON diagram files to `.flowy/*.json`
+1. **Create** `.flowi/` directory in the project root if it doesn't exist
+2. **Write** JSON diagram files to `.flowi/*.json`
 3. **Start the viewer** if not already running (tell the user to run the server)
 4. **Read back** any changes the user makes visually
 5. **Iterate** based on visual feedback
@@ -27,13 +27,13 @@ node ~/.claude/skills/flowi/server.js
 ```
 
 This starts a dev server at `http://localhost:3333` that:
-- Renders all `.flowy/*.json` files as interactive diagrams
+- Renders all `.flowi/*.json` files as interactive diagrams
 - Live-reloads when you write new JSON
 - Saves the user's visual edits back to the JSON files
 
 ## JSON Schema
 
-Each `.flowy/*.json` file represents one diagram. Use this schema:
+Each `.flowi/*.json` file represents one diagram. Use this schema:
 
 ```json
 {
@@ -93,14 +93,14 @@ Use `"type"` to hint at layout:
 ## Reading User Edits
 
 After the user edits a diagram visually:
-1. Read the JSON file back from `.flowy/`
+1. Read the JSON file back from `.flowi/`
 2. Note changed positions, added/removed nodes, edited labels
 3. Ask the user what they'd like you to do with the changes
 4. Update your implementation plan accordingly
 
 ## Example: Simple Auth Flow
 
-Write to `.flowy/auth-flow.json`:
+Write to `.flowi/auth-flow.json`:
 
 ```json
 {
@@ -127,7 +127,7 @@ Write to `.flowy/auth-flow.json`:
 
 ## Best Practices
 
-- Always create the `.flowy/` directory first with `mkdir -p .flowi`
+- Always create the `.flowi/` directory first with `mkdir -p .flowi`
 - Write one diagram per concept/flow
 - After writing JSON, remind the user to check `http://localhost:3333`
 - When the user says they've made edits, read the file back before proceeding

@@ -101,7 +101,7 @@ Each skill can be invoked manually with `/<skill-name>` in Claude Code, or trigg
   copywriting/
     SKILL.md          # Main skill definition
     references/       # Optional supporting docs
-  flowy/
+  flowi/
     SKILL.md
     server.js         # Optional bundled tools
     index.html
