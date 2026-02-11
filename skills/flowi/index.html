@@ -139,6 +139,11 @@
 <div class="toast hidden" id="toast"></div>
 
 <script>
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // --- State ---
 let diagrams = [];
 let currentIdx = 0;
@@ -468,7 +473,7 @@ function editNodeModal(nodeId) {
     <div class="modal">
       <h3>Edit Node</h3>
       <label>Label</label>
-      <input id="editLabel" value="${(node.label||'').replace(/"/g,'&quot;')}"/>
+      <input id="editLabel" value="${escapeHtml(node.label||'')}"/>
       <label>Type</label>
       <select id="editType">
         ${['start','process','decision','end','io','database','component','note'].map(t =>
@@ -476,7 +481,7 @@ function editNodeModal(nodeId) {
         ).join('')}
       </select>
       <label>Description</label>
-      <textarea id="editDesc">${node.description||''}</textarea>
+      <textarea id="editDesc">${escapeHtml(node.description||'')}</textarea>
       <div class="modal-actions">
         <button class="btn" id="editDelete" style="margin-right:auto;color:var(--red)">Delete</button>
         <button class="btn" id="editCancel">Cancel</button>

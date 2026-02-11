@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", `http://localhost:${PORT}`);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -99,12 +99,28 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: "Filename must end with .json" }));
       return;
     }
+    const filepath = path.resolve(FLOWY_DIR, filename);
+    if (!filepath.startsWith(path.resolve(FLOWY_DIR) + path.sep)) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid filename" }));
+      return;
+    }
     let body = "";
-    req.on("data", (chunk) => (body += chunk));
+    let size = 0;
+    const MAX_BODY = 1024 * 1024; // 1MB
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY) {
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Request too large" }));
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
     req.on("end", () => {
       try {
         const data = JSON.parse(body);
-        const filepath = path.join(FLOWY_DIR, filename);
         fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
         console.log(`[flowy] Saved: ${filename}`);
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -134,7 +150,7 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   console.log(`\n  Flowy Viewer running at http://localhost:${PORT}`);
   console.log(`  Watching: ${FLOWY_DIR}\n`);
   watchFlowyDir();
