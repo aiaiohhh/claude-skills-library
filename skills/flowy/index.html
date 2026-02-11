@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flowy - Visual Diagram Viewer</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242736;
+    --border: #2e3348;
+    --text: #e2e4ed;
+    --text-dim: #8b8fa3;
+    --accent: #6c7bf7;
+    --accent-hover: #8390ff;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --purple: #a78bfa;
+    --teal: #2dd4bf;
+    --indigo: #818cf8;
+    --blue: #60a5fa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* Header */
+  header { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; z-index:10; }
+  header h1 { font-size:16px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  header h1 span { color:var(--accent); }
+  .tabs { display:flex; gap:4px; flex:1; margin:0 20px; overflow-x:auto; }
+  .tab { padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; color:var(--text-dim); white-space:nowrap; transition:all .15s; border:1px solid transparent; }
+  .tab:hover { color:var(--text); background:var(--surface2); }
+  .tab.active { color:var(--text); background:var(--accent); border-color:var(--accent); }
+  .tab.error { color:var(--red); }
+  .header-actions { display:flex; gap:8px; flex-shrink:0; }
+  .btn { padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; cursor:pointer; transition:all .15s; }
+  .btn:hover { border-color:var(--accent); color:var(--accent); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { background:var(--accent-hover); }
+  .status { font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:5px; }
+  .status-dot { width:6px; height:6px; border-radius:50%; background:var(--green); }
+  .status-dot.disconnected { background:var(--red); }
+
+  /* Canvas */
+  .canvas-wrap { flex:1; position:relative; overflow:hidden; }
+  svg.canvas { width:100%; height:100%; cursor:grab; }
+  svg.canvas.grabbing { cursor:grabbing; }
+
+  /* Grid */
+  .grid-pattern { stroke:var(--border); stroke-width:0.5; }
+
+  /* Nodes */
+  .node { cursor:move; }
+  .node:hover .node-shape { filter:brightness(1.15); }
+  .node.selected .node-shape { stroke:var(--accent); stroke-width:2.5; stroke-dasharray: none; }
+  .node-shape { stroke:var(--border); stroke-width:1; transition: filter .15s; }
+  .node-label { fill:var(--text); font-size:13px; font-weight:500; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .node-desc { fill:var(--text-dim); font-size:10px; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+
+  /* Edges */
+  .edge-line { stroke:var(--text-dim); stroke-width:1.5; fill:none; marker-end:url(#arrowhead); }
+  .edge-line:hover { stroke:var(--accent); stroke-width:2; }
+  .edge-label { fill:var(--text-dim); font-size:11px; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .edge-label-bg { fill:var(--bg); }
+
+  /* Empty state */
+  .empty-state { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-dim); }
+  .empty-state h2 { font-size:20px; margin-bottom:8px; color:var(--text); }
+  .empty-state p { font-size:14px; max-width:400px; text-align:center; line-height:1.6; }
+  .empty-state code { background:var(--surface2); padding:2px 6px; border-radius:4px; font-size:12px; }
+
+  /* Edit modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; width:380px; }
+  .modal h3 { font-size:15px; margin-bottom:16px; }
+  .modal label { display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px; margin-top:12px; }
+  .modal input, .modal select, .modal textarea { width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; outline:none; }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color:var(--accent); }
+  .modal textarea { resize:vertical; min-height:60px; }
+  .modal-actions { display:flex; gap:8px; margin-top:20px; justify-content:flex-end; }
+
+  /* Minimap */
+  .minimap { position:absolute; bottom:16px; right:16px; width:180px; height:120px; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; opacity:0.8; }
+  .minimap:hover { opacity:1; }
+  .minimap-viewport { stroke:var(--accent); stroke-width:1.5; fill:rgba(108,123,247,0.08); }
+
+  /* Toolbar */
+  .toolbar { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px; }
+  .toolbar .btn { border:none; padding:8px 10px; border-radius:6px; font-size:16px; line-height:1; }
+
+  /* Toast */
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); padding:8px 16px; border-radius:8px; font-size:13px; z-index:200; transition:opacity .3s; }
+  .toast.hidden { opacity:0; pointer-events:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>&#9670;</span> Flowy</h1>
+  <div class="tabs" id="tabs"></div>
+  <div class="header-actions">
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <button class="btn" onclick="autoLayout()" title="Auto-layout nodes">Layout</button>
+    <button class="btn primary" onclick="saveCurrent()" title="Save changes to file">Save</button>
+  </div>
+</header>
+
+<div class="canvas-wrap" id="canvasWrap">
+  <svg class="canvas" id="canvas">
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#8b8fa3"/>
+      </marker>
+      <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+        <path d="M 30 0 L 0 0 0 30" fill="none" class="grid-pattern"/>
+      </pattern>
+    </defs>
+    <rect width="10000" height="10000" x="-5000" y="-5000" fill="url(#grid)" class="grid-bg"/>
+    <g id="edgesGroup"></g>
+    <g id="nodesGroup"></g>
+  </svg>
+  <div class="empty-state" id="emptyState" style="display:none">
+    <h2>No diagrams yet</h2>
+    <p>Ask Claude to create a diagram using <code>/flowy</code> and JSON files will appear in your <code>.flowy/</code> directory.</p>
+  </div>
+  <div class="toolbar">
+    <button class="btn" onclick="zoomIn()" title="Zoom in">+</button>
+    <button class="btn" onclick="zoomOut()" title="Zoom out">-</button>
+    <button class="btn" onclick="zoomFit()" title="Fit to view">Fit</button>
+    <button class="btn" onclick="addNode()" title="Add node">+ Node</button>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+// --- State ---
+let diagrams = [];
+let currentIdx = 0;
+let selectedNode = null;
+let dragging = null;
+let dragOffset = { x:0, y:0 };
+let pan = { x:0, y:0 };
+let zoom = 1;
+let isPanning = false;
+let panStart = { x:0, y:0 };
+let panOrigin = { x:0, y:0 };
+
+const canvas = document.getElementById('canvas');
+const nodesGroup = document.getElementById('nodesGroup');
+const edgesGroup = document.getElementById('edgesGroup');
+const tabs = document.getElementById('tabs');
+const emptyState = document.getElementById('emptyState');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+// --- Node Dimensions ---
+const NODE_W = 160;
+const NODE_H = 56;
+const DIAMOND_SIZE = 72;
+
+function nodeWidth(n) { return n.type === 'decision' ? DIAMOND_SIZE * 2 : NODE_W; }
+function nodeHeight(n) { return n.type === 'decision' ? DIAMOND_SIZE * 2 : NODE_H; }
+function nodeCenterX(n) { return n.x + nodeWidth(n) / 2; }
+function nodeCenterY(n) { return n.y + nodeHeight(n) / 2; }
+
+// --- Colors ---
+const nodeColors = {
+  start:     { fill:'#064e3b', stroke:'#34d399' },
+  end:       { fill:'#7f1d1d', stroke:'#f87171' },
+  process:   { fill:'#1e3a5f', stroke:'#60a5fa' },
+  decision:  { fill:'#78350f', stroke:'#fbbf24' },
+  io:        { fill:'#3b0764', stroke:'#a78bfa' },
+  database:  { fill:'#134e4a', stroke:'#2dd4bf' },
+  component: { fill:'#312e81', stroke:'#818cf8' },
+  note:      { fill:'#1f2937', stroke:'#6b7280' },
+};
+
+// --- SVG Helpers ---
+function svgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  return el;
+}
+
+function nodeShape(node) {
+  const c = nodeColors[node.type] || nodeColors.process;
+  const fill = node.color || c.fill;
+  const stroke = c.stroke;
+
+  switch (node.type) {
+    case 'start':
+    case 'end':
+      return svgEl('rect', { x:node.x, y:node.y, width:NODE_W, height:NODE_H, rx:NODE_H/2, fill, stroke, class:'node-shape' });
+
+    case 'decision': {
+      const cx = node.x + DIAMOND_SIZE;
+      const cy = node.y + DIAMOND_SIZE;
+      const s = DIAMOND_SIZE;
+      return svgEl('polygon', { points:`${cx},${cy-s} ${cx+s},${cy} ${cx},${cy+s} ${cx-s},${cy}`, fill, stroke, class:'node-shape' });
+    }
+
+    case 'io': {
+      const skew = 15;
+      const pts = `${node.x+skew},${node.y} ${node.x+NODE_W},${node.y} ${node.x+NODE_W-skew},${node.y+NODE_H} ${node.x},${node.y+NODE_H}`;
+      return svgEl('polygon', { points:pts, fill, stroke, class:'node-shape' });
+    }
+
+    case 'database': {
+      const rx = NODE_W/2, ry = 10;
+      const cx = node.x + NODE_W/2;
+      const d = `M${node.x},${node.y+ry} A${rx},${ry} 0 0,1 ${node.x+NODE_W},${node.y+ry} V${node.y+NODE_H-ry} A${rx},${ry} 0 0,1 ${node.x},${node.y+NODE_H-ry} Z M${node.x},${node.y+ry} A${rx},${ry} 0 0,0 ${node.x+NODE_W},${node.y+ry}`;
+      return svgEl('path', { d, fill, stroke, class:'node-shape' });
+    }
+
+    case 'note':
+      return svgEl('rect', { x:node.x, y:node.y, width:NODE_W, height:NODE_H, rx:4, fill, stroke, 'stroke-dasharray':'5,3', class:'node-shape' });
+
+    case 'component':
+      return svgEl('rect', { x:node.x, y:node.y, width:NODE_W, height:NODE_H, rx:12, fill, stroke, class:'node-shape' });
+
+    default:
+      return svgEl('rect', { x:node.x, y:node.y, width:NODE_W, height:NODE_H, rx:4, fill, stroke, class:'node-shape' });
+  }
+}
+
+// --- Edge Path ---
+function edgePath(diagram, edge) {
+  const from = diagram.nodes.find(n => n.id === edge.from);
+  const to = diagram.nodes.find(n => n.id === edge.to);
+  if (!from || !to) return '';
+
+  const fcx = nodeCenterX(from), fcy = nodeCenterY(from);
+  const tcx = nodeCenterX(to), tcy = nodeCenterY(to);
+
+  // Simple: find best connection points
+  const dx = tcx - fcx, dy = tcy - fcy;
+  let fx, fy, tx, ty;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal dominant
+    if (dx > 0) {
+      fx = from.x + nodeWidth(from); fy = fcy;
+      tx = to.x; ty = tcy;
+    } else {
+      fx = from.x; fy = fcy;
+      tx = to.x + nodeWidth(to); ty = tcy;
+    }
+  } else {
+    // Vertical dominant
+    if (dy > 0) {
+      fx = fcx; fy = from.y + nodeHeight(from);
+      tx = tcx; ty = to.y;
+    } else {
+      fx = fcx; fy = from.y;
+      tx = tcx; ty = to.y + nodeHeight(to);
+    }
+  }
+
+  // Bezier control points
+  const mx = (fx + tx) / 2, my = (fy + ty) / 2;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return `M${fx},${fy} C${mx},${fy} ${mx},${ty} ${tx},${ty}`;
+  } else {
+    return `M${fx},${fy} C${fx},${my} ${tx},${my} ${tx},${ty}`;
+  }
+}
+
+// --- Render ---
+function render() {
+  nodesGroup.innerHTML = '';
+  edgesGroup.innerHTML = '';
+
+  const diagram = diagrams[currentIdx];
+  if (!diagram || diagram.error) {
+    emptyState.style.display = (!diagram) ? 'flex' : 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+
+  // Render edges
+  (diagram.edges || []).forEach((edge) => {
+    const d = edgePath(diagram, edge);
+    if (!d) return;
+
+    const pathEl = svgEl('path', { d, class:'edge-line' });
+    edgesGroup.appendChild(pathEl);
+
+    if (edge.label) {
+      const from = diagram.nodes.find(n => n.id === edge.from);
+      const to = diagram.nodes.find(n => n.id === edge.to);
+      if (from && to) {
+        const mx = (nodeCenterX(from) + nodeCenterX(to)) / 2;
+        const my = (nodeCenterY(from) + nodeCenterY(to)) / 2;
+        const bg = svgEl('rect', { x:mx-20, y:my-9, width:40, height:18, rx:4, class:'edge-label-bg' });
+        const label = svgEl('text', { x:mx, y:my, class:'edge-label' });
+        label.textContent = edge.label;
+        edgesGroup.appendChild(bg);
+        edgesGroup.appendChild(label);
+      }
+    }
+  });
+
+  // Render nodes
+  (diagram.nodes || []).forEach((node) => {
+    const g = svgEl('g', { class:'node' + (selectedNode === node.id ? ' selected' : ''), 'data-id':node.id });
+    g.appendChild(nodeShape(node));
+
+    const cx = nodeCenterX(node);
+    const cy = nodeCenterY(node);
+    const label = svgEl('text', { x:cx, y: node.description ? cy - 7 : cy, class:'node-label' });
+    label.textContent = node.label || node.id;
+    g.appendChild(label);
+
+    if (node.description) {
+      const desc = svgEl('text', { x:cx, y:cy + 9, class:'node-desc' });
+      desc.textContent = node.description.length > 25 ? node.description.slice(0,22) + '...' : node.description;
+      g.appendChild(desc);
+    }
+
+    g.addEventListener('mousedown', onNodeMouseDown);
+    g.addEventListener('dblclick', () => editNodeModal(node.id));
+    nodesGroup.appendChild(g);
+  });
+
+  updateTransform();
+}
+
+function updateTransform() {
+  const g = `translate(${pan.x},${pan.y}) scale(${zoom})`;
+  nodesGroup.setAttribute('transform', g);
+  edgesGroup.setAttribute('transform', g);
+  canvas.querySelector('.grid-bg').setAttribute('transform', g);
+}
+
+// --- Tabs ---
+function renderTabs() {
+  tabs.innerHTML = '';
+  if (diagrams.length === 0) {
+    emptyState.style.display = 'flex';
+    return;
+  }
+  diagrams.forEach((d, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (i === currentIdx ? ' active' : '') + (d.error ? ' error' : '');
+    tab.textContent = d.title || d.filename || `Diagram ${i+1}`;
+    tab.onclick = () => { currentIdx = i; selectedNode = null; renderTabs(); render(); zoomFit(); };
+    tabs.appendChild(tab);
+  });
+}
+
+// --- Drag nodes ---
+function onNodeMouseDown(e) {
+  e.stopPropagation();
+  const g = e.currentTarget;
+  const id = g.getAttribute('data-id');
+  const diagram = diagrams[currentIdx];
+  const node = diagram.nodes.find(n => n.id === id);
+  if (!node) return;
+
+  selectedNode = id;
+  dragging = node;
+  const pt = svgPoint(e);
+  dragOffset.x = pt.x - node.x;
+  dragOffset.y = pt.y - node.y;
+  render();
+}
+
+function svgPoint(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left - pan.x) / zoom,
+    y: (e.clientY - rect.top - pan.y) / zoom
+  };
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  if (dragging) {
+    const pt = svgPoint(e);
+    dragging.x = Math.round((pt.x - dragOffset.x) / 10) * 10;
+    dragging.y = Math.round((pt.y - dragOffset.y) / 10) * 10;
+    render();
+  } else if (isPanning) {
+    pan.x = panOrigin.x + (e.clientX - panStart.x);
+    pan.y = panOrigin.y + (e.clientY - panStart.y);
+    updateTransform();
+    canvas.classList.add('grabbing');
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  dragging = null;
+  isPanning = false;
+  canvas.classList.remove('grabbing');
+});
+
+canvas.addEventListener('mouseleave', () => {
+  dragging = null;
+  isPanning = false;
+  canvas.classList.remove('grabbing');
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.target === canvas || e.target.classList.contains('grid-bg')) {
+    selectedNode = null;
+    isPanning = true;
+    panStart = { x:e.clientX, y:e.clientY };
+    panOrigin = { ...pan };
+    render();
+  }
+});
+
+// Zoom with scroll
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const newZoom = Math.min(3, Math.max(0.15, zoom * delta));
+  pan.x = mx - (mx - pan.x) * (newZoom / zoom);
+  pan.y = my - (my - pan.y) * (newZoom / zoom);
+  zoom = newZoom;
+  updateTransform();
+}, { passive:false });
+
+// --- Zoom controls ---
+function zoomIn() { zoom = Math.min(3, zoom * 1.2); updateTransform(); }
+function zoomOut() { zoom = Math.max(0.15, zoom * 0.8); updateTransform(); }
+
+function zoomFit() {
+  const diagram = diagrams[currentIdx];
+  if (!diagram || !diagram.nodes || diagram.nodes.length === 0) return;
+
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  diagram.nodes.forEach(n => {
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + nodeWidth(n));
+    maxY = Math.max(maxY, n.y + nodeHeight(n));
+  });
+
+  const rect = canvas.getBoundingClientRect();
+  const padding = 80;
+  const dw = maxX - minX + padding * 2;
+  const dh = maxY - minY + padding * 2;
+  zoom = Math.min(2, Math.min(rect.width / dw, rect.height / dh));
+  pan.x = (rect.width - dw * zoom) / 2 - (minX - padding) * zoom;
+  pan.y = (rect.height - dh * zoom) / 2 - (minY - padding) * zoom;
+  updateTransform();
+}
+
+// --- Edit Node Modal ---
+function editNodeModal(nodeId) {
+  const diagram = diagrams[currentIdx];
+  const node = diagram.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Edit Node</h3>
+      <label>Label</label>
+      <input id="editLabel" value="${(node.label||'').replace(/"/g,'&quot;')}"/>
+      <label>Type</label>
+      <select id="editType">
+        ${['start','process','decision','end','io','database','component','note'].map(t =>
+          `<option value="${t}" ${node.type===t?'selected':''}>${t}</option>`
+        ).join('')}
+      </select>
+      <label>Description</label>
+      <textarea id="editDesc">${node.description||''}</textarea>
+      <div class="modal-actions">
+        <button class="btn" id="editDelete" style="margin-right:auto;color:var(--red)">Delete</button>
+        <button class="btn" id="editCancel">Cancel</button>
+        <button class="btn primary" id="editSave">Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#editLabel').focus();
+
+  overlay.querySelector('#editCancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector('#editSave').onclick = () => {
+    node.label = overlay.querySelector('#editLabel').value;
+    node.type = overlay.querySelector('#editType').value;
+    node.description = overlay.querySelector('#editDesc').value;
+    overlay.remove();
+    render();
+  };
+
+  overlay.querySelector('#editDelete').onclick = () => {
+    diagram.nodes = diagram.nodes.filter(n => n.id !== nodeId);
+    diagram.edges = diagram.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+    selectedNode = null;
+    overlay.remove();
+    render();
+  };
+
+  // Enter to save
+  overlay.querySelector('#editLabel').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') overlay.querySelector('#editSave').click();
+  });
+}
+
+// --- Add Node ---
+function addNode() {
+  const diagram = diagrams[currentIdx];
+  if (!diagram) return;
+
+  const id = 'node-' + Date.now();
+  const rect = canvas.getBoundingClientRect();
+  const cx = (rect.width / 2 - pan.x) / zoom;
+  const cy = (rect.height / 2 - pan.y) / zoom;
+
+  diagram.nodes.push({
+    id,
+    type: 'process',
+    label: 'New Node',
+    x: Math.round(cx / 10) * 10 - NODE_W / 2,
+    y: Math.round(cy / 10) * 10 - NODE_H / 2
+  });
+
+  selectedNode = id;
+  render();
+  editNodeModal(id);
+}
+
+// --- Auto Layout ---
+function autoLayout() {
+  const diagram = diagrams[currentIdx];
+  if (!diagram || !diagram.nodes || diagram.nodes.length === 0) return;
+
+  // Simple top-down layout using topological sort
+  const nodes = diagram.nodes;
+  const edges = diagram.edges || [];
+
+  // Build adjacency
+  const inDeg = {};
+  const children = {};
+  nodes.forEach(n => { inDeg[n.id] = 0; children[n.id] = []; });
+  edges.forEach(e => {
+    if (inDeg[e.to] !== undefined) inDeg[e.to]++;
+    if (children[e.from]) children[e.from].push(e.to);
+  });
+
+  // BFS layers
+  const layers = [];
+  const visited = new Set();
+  let queue = nodes.filter(n => inDeg[n.id] === 0).map(n => n.id);
+  if (queue.length === 0) queue = [nodes[0].id]; // fallback
+
+  while (queue.length > 0) {
+    layers.push([...queue]);
+    queue.forEach(id => visited.add(id));
+    const next = [];
+    queue.forEach(id => {
+      children[id].forEach(cid => {
+        if (!visited.has(cid) && !next.includes(cid)) next.push(cid);
+      });
+    });
+    queue = next;
+  }
+
+  // Add any unvisited nodes
+  nodes.forEach(n => {
+    if (!visited.has(n.id)) {
+      layers.push([n.id]);
+      visited.add(n.id);
+    }
+  });
+
+  // Position
+  const xSpacing = 220;
+  const ySpacing = 150;
+  layers.forEach((layer, li) => {
+    const totalWidth = layer.length * xSpacing;
+    const startX = 300 - totalWidth / 2 + xSpacing / 2;
+    layer.forEach((id, ni) => {
+      const node = nodes.find(n => n.id === id);
+      if (node) {
+        node.x = startX + ni * xSpacing;
+        node.y = 50 + li * ySpacing;
+      }
+    });
+  });
+
+  render();
+  zoomFit();
+  toast('Auto-layout applied');
+}
+
+// --- Save ---
+async function saveCurrent() {
+  const diagram = diagrams[currentIdx];
+  if (!diagram || !diagram.filename) return;
+
+  // Build clean object (strip filename, error)
+  const { filename, error, ...data } = diagram;
+  try {
+    const res = await fetch(`/api/diagrams/${encodeURIComponent(filename)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data, null, 2)
+    });
+    if (res.ok) {
+      toast('Saved ' + filename);
+    } else {
+      const err = await res.json();
+      toast('Error: ' + err.error, true);
+    }
+  } catch (e) {
+    toast('Save failed: ' + e.message, true);
+  }
+}
+
+// --- Toast ---
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = isError ? 'var(--red)' : 'var(--accent)';
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+// --- Load diagrams ---
+async function loadDiagrams() {
+  try {
+    const res = await fetch('/api/diagrams');
+    diagrams = await res.json();
+    if (currentIdx >= diagrams.length) currentIdx = Math.max(0, diagrams.length - 1);
+    renderTabs();
+    render();
+  } catch (e) {
+    console.error('Failed to load diagrams:', e);
+  }
+}
+
+// --- SSE Live Reload ---
+function connectSSE() {
+  const es = new EventSource('/events');
+  es.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'connected') {
+      statusDot.classList.remove('disconnected');
+      statusText.textContent = 'Live';
+    } else if (data.type === 'reload') {
+      loadDiagrams().then(() => zoomFit());
+    }
+  };
+  es.onerror = () => {
+    statusDot.classList.add('disconnected');
+    statusText.textContent = 'Disconnected';
+  };
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedNode) {
+      const diagram = diagrams[currentIdx];
+      diagram.nodes = diagram.nodes.filter(n => n.id !== selectedNode);
+      diagram.edges = diagram.edges.filter(e => e.from !== selectedNode && e.to !== selectedNode);
+      selectedNode = null;
+      render();
+    }
+  }
+  if (e.key === 'Escape') {
+    selectedNode = null;
+    render();
+    document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    saveCurrent();
+  }
+});
+
+// --- Init ---
+loadDiagrams().then(() => {
+  renderTabs();
+  render();
+  setTimeout(zoomFit, 100);
+});
+connectSSE();
+</script>
+</body>
+</html>
