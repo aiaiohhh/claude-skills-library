@@ -82,7 +82,7 @@ Restart Claude Code after installing to pick up new skills.
 
 | Skill | Description |
 |-------|-------------|
-| **flowy** | Visual flowchart and diagram planning — renders interactive diagrams in browser |
+| **flowi** | Visual flowchart and diagram planning — renders interactive diagrams in browser |
 | **frontend-design** | Create distinctive, production-grade frontend interfaces with high design quality |
 | **mcp-builder** | Guide for creating MCP (Model Context Protocol) servers |
 | **skill-creator** | Guide for creating new Claude Code skills |

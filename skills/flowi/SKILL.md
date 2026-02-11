@@ -1,14 +1,14 @@
 ---
-name: flowy
+name: flowi
 author: tyr0nin - AiAiOHHH
 version: 1.0.0
 user_invocable: true
 description: Visual flowchart and diagram planning tool. Claude writes structured JSON to a .flowy/ directory, which renders as interactive, editable diagrams in the browser. Use for architecture planning, user flows, system design, state machines, and UI mockups.
 ---
 
-# Flowy - Visual Planning & Diagramming
+# Flowi - Visual Planning & Diagramming
 
-You are using Flowy, a visual feedback loop for planning. Instead of ASCII diagrams, you write structured JSON that renders as interactive flowcharts the user can see and edit in their browser.
+You are using Flowi, a visual feedback loop for planning. Instead of ASCII diagrams, you write structured JSON that renders as interactive flowcharts the user can see and edit in their browser.
 
 ## Workflow
 
@@ -23,7 +23,7 @@ You are using Flowy, a visual feedback loop for planning. Instead of ASCII diagr
 Tell the user to run this command in a separate terminal:
 
 ```bash
-node ~/.claude/skills/flowy/server.js
+node ~/.claude/skills/flowi/server.js
 ```
 
 This starts a dev server at `http://localhost:3333` that:
@@ -127,7 +127,7 @@ Write to `.flowy/auth-flow.json`:
 
 ## Best Practices
 
-- Always create the `.flowy/` directory first with `mkdir -p .flowy`
+- Always create the `.flowy/` directory first with `mkdir -p .flowi`
 - Write one diagram per concept/flow
 - After writing JSON, remind the user to check `http://localhost:3333`
 - When the user says they've made edits, read the file back before proceeding
